@@ -11,6 +11,7 @@ interface ActivityStore {
   fetchActiveEntry: () => Promise<void>
   startActivity: (activityId: string) => Promise<void>
   stopAll: () => Promise<void>
+  updateEntryNotes: (id: string, notes: string) => Promise<void>
   addActivity: (name: string, color: string | null, parentId: string | null) => Promise<void>
   updateActivity: (id: string, updates: Partial<Pick<Activity, 'name' | 'color' | 'sort_order' | 'parent_id'>>) => Promise<void>
   deleteActivity: (id: string) => Promise<void>
@@ -58,6 +59,7 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
         activity_id: activityId,
         started_at: now,
         stopped_at: null,
+        notes: null,
         created_at: now,
       },
     })
@@ -67,6 +69,15 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
     const now = new Date().toISOString()
     await supabase.from('time_entries').update({ stopped_at: now }).is('stopped_at', null)
     set({ activeEntry: null })
+  },
+
+  updateEntryNotes: async (id: string, notes: string) => {
+    await supabase.from('time_entries').update({ notes }).eq('id', id)
+    set((s) => ({
+      activeEntry: s.activeEntry?.id === id
+        ? { ...s.activeEntry, notes }
+        : s.activeEntry,
+    }))
   },
 
   addActivity: async (name: string, color: string | null, parentId: string | null) => {

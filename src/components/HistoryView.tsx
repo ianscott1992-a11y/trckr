@@ -86,10 +86,17 @@ export function HistoryView() {
             const ms = stopped - new Date(e.started_at).getTime()
             const startTime = new Date(e.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             return (
-              <div key={e.id} className="flex items-center gap-3 py-2 border-b border-slate-800">
-                <span className="text-slate-500 text-xs font-mono w-12">{startTime}</span>
-                <span className="flex-1 text-sm text-slate-200">{act?.name ?? 'Unknown'}</span>
-                <span className="text-xs font-mono text-slate-400">{formatDuration(ms)}</span>
+              <div key={e.id} className="py-2 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-500 text-xs font-mono w-12 flex-shrink-0">{startTime}</span>
+                  <span className="flex-1 text-sm text-slate-200">{act?.name ?? 'Unknown'}</span>
+                  <span className="text-xs font-mono text-slate-400">{formatDuration(ms)}</span>
+                </div>
+                {e.notes && (
+                  <div className="ml-16 mt-0.5">
+                    <span className="text-xs text-slate-500 italic">"{e.notes}"</span>
+                  </div>
+                )}
               </div>
             )
           })}

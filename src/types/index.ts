@@ -12,6 +12,7 @@ export interface TimeEntry {
   activity_id: string
   started_at: string
   stopped_at: string | null
+  notes: string | null
   created_at: string
 }
 

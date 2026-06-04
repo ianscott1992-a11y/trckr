@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useActivityStore, groupActivities } from '../store/useActivityStore'
 import { ActivityTile } from './ActivityTile'
 import { AddActivityModal } from './AddActivityModal'
@@ -18,9 +18,11 @@ const BG_BANNER: Record<string, string> = {
 }
 
 export function ActivityList() {
-  const { activities, activeEntry, stopAll } = useActivityStore()
+  const { activities, activeEntry, stopAll, updateEntryNotes } = useActivityStore()
   const [editing, setEditing] = useState<Activity | null>(null)
   const [addParentId, setAddParentId] = useState<string | null | undefined>(undefined)
+  const [notes, setNotes] = useState('')
+  const [notesSaved, setNotesSaved] = useState(false)
 
   const grouped = groupActivities(activities)
   const groupsWithChildren = grouped.filter((g) => g.children.length > 0)
@@ -33,21 +35,65 @@ export function ActivityList() {
     : null
   const bannerBg = BG_BANNER[activeActivity?.color ?? 'slate'] ?? 'bg-slate-600'
 
+  // Sync notes field when active entry changes
+  useEffect(() => {
+    setNotes(activeEntry?.notes ?? '')
+    setNotesSaved(false)
+  }, [activeEntry?.id])
+
+  async function handleSaveNotes() {
+    if (!activeEntry) return
+    await updateEntryNotes(activeEntry.id, notes)
+    setNotesSaved(true)
+    setTimeout(() => setNotesSaved(false), 2000)
+  }
+
+  function handleNotesKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSaveNotes()
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3 h-full">
 
       {/* Active banner */}
       {activeEntry && activeActivity ? (
-        <div
-          className={`${bannerBg} rounded-2xl px-4 py-3 flex items-center justify-between cursor-pointer active:opacity-80 flex-shrink-0`}
-          onClick={stopAll}
-        >
-          <div>
-            <p className="text-white/70 text-xs mb-0.5">Now tracking — tap to stop</p>
-            <p className="text-white font-semibold text-sm">{activeActivity.name}</p>
+        <div className={`${bannerBg} rounded-2xl px-4 pt-3 pb-3 flex-shrink-0 space-y-2`}>
+          {/* Top row */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/70 text-xs mb-0.5">Now tracking</p>
+              <p className="text-white font-semibold text-sm">{activeActivity.name}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-white font-mono text-lg font-bold">
+                <LiveTimer startedAt={activeEntry.started_at} />
+              </div>
+              <button
+                onClick={stopAll}
+                className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Stop
+              </button>
+            </div>
           </div>
-          <div className="text-white font-mono text-lg font-bold">
-            <LiveTimer startedAt={activeEntry.started_at} />
+
+          {/* Notes input */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="Add a note…"
+              value={notes}
+              onChange={(e) => { setNotes(e.target.value); setNotesSaved(false) }}
+              onKeyDown={handleNotesKeyDown}
+              onBlur={handleSaveNotes}
+              className="flex-1 bg-black/20 text-white placeholder-white/40 text-xs rounded-lg px-3 py-1.5 outline-none focus:bg-black/30"
+            />
+            {notesSaved && (
+              <span className="text-white/60 text-xs">✓ saved</span>
+            )}
           </div>
         </div>
       ) : (
