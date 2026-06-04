@@ -79,17 +79,17 @@ export function HistoryView() {
 
   const isToday = date === toLocalDate(new Date())
 
-  // ── zoom: ctrl+wheel ──────────────────────────────────────────────────────
+  // ── zoom: ctrl+wheel — must attach to document to beat browser zoom ────────
   useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
     function onWheel(e: WheelEvent) {
       if (!e.ctrlKey && !e.metaKey) return
+      // Only intercept when pointer is inside our container
+      if (!containerRef.current?.contains(e.target as Node)) return
       e.preventDefault()
       setHourPx(p => Math.max(MIN_HR_PX, Math.min(MAX_HR_PX, p - e.deltaY * 0.4)))
     }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
+    document.addEventListener('wheel', onWheel, { passive: false })
+    return () => document.removeEventListener('wheel', onWheel)
   }, [])
 
   // ── zoom: touch pinch ─────────────────────────────────────────────────────
@@ -265,6 +265,7 @@ export function HistoryView() {
         <div
           ref={containerRef}
           className="flex-1 overflow-y-auto overflow-x-hidden select-none"
+          style={{ touchAction: 'pan-y' }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
