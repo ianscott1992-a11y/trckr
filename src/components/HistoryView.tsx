@@ -3,6 +3,8 @@ import { useTimeEntries } from '../hooks/useTimeEntries'
 import { useActivityStore } from '../store/useActivityStore'
 import { supabase } from '../lib/supabase'
 import { formatDuration } from './LiveTimer'
+import { EditEntryModal } from './EditEntryModal'
+import type { TimeEntry } from '../types'
 
 const DOT_COLORS: Record<string, string> = {
   slate: 'bg-slate-500', red: 'bg-red-500', orange: 'bg-orange-500',
@@ -20,7 +22,8 @@ export function HistoryView() {
   const activities = useActivityStore((s) => s.activities)
   const activityMap = Object.fromEntries(activities.map((a) => [a.id, a]))
 
-  // Track which entry is being edited and its draft value
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null | undefined>(undefined)
+  // undefined = closed, null = new entry, TimeEntry = editing existing
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftNote, setDraftNote] = useState('')
 
@@ -40,7 +43,7 @@ export function HistoryView() {
     if (toLocalDateString(d) <= today) setDate(toLocalDateString(d))
   }
 
-  function startEdit(id: string, currentNote: string | null) {
+  function startNoteEdit(id: string, currentNote: string | null) {
     setEditingId(id)
     setDraftNote(currentNote ?? '')
   }
@@ -95,6 +98,14 @@ export function HistoryView() {
         </div>
       )}
 
+      {/* Add missing entry button */}
+      <button
+        onClick={() => setEditingEntry(null)}
+        className="w-full rounded-xl border border-dashed border-slate-700 py-2 text-slate-500 hover:border-slate-500 hover:text-slate-400 transition-colors text-xs"
+      >
+        + Add missing entry
+      </button>
+
       {/* Entry list */}
       {loading ? (
         <p className="text-slate-500 text-sm">Loading…</p>
@@ -108,7 +119,7 @@ export function HistoryView() {
             const ms = stopped - new Date(e.started_at).getTime()
             const startTime = new Date(e.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             const dot = DOT_COLORS[act?.color ?? 'slate'] ?? 'bg-slate-500'
-            const isEditing = editingId === e.id
+            const isEditingNote = editingId === e.id
 
             return (
               <div key={e.id} className="py-2 border-b border-slate-800">
@@ -117,19 +128,24 @@ export function HistoryView() {
                   <span className="text-slate-500 text-xs font-mono w-12 flex-shrink-0">{startTime}</span>
                   <span className={`h-2 w-2 rounded-full flex-shrink-0 ${dot}`} />
                   <span className="flex-1 text-sm text-slate-200">{act?.name ?? 'Unknown'}</span>
-                  <span className="text-xs font-mono text-slate-400">{formatDuration(ms)}</span>
+                  <span className="text-xs font-mono text-slate-400 mr-1">{formatDuration(ms)}</span>
+                  <button
+                    onClick={() => setEditingEntry(e)}
+                    className="text-slate-600 hover:text-slate-400 text-xs px-1"
+                    aria-label="Edit entry"
+                  >✎</button>
                 </div>
 
                 {/* Note row */}
                 <div className="ml-16 mt-1">
-                  {isEditing ? (
+                  {isEditingNote ? (
                     <div className="flex items-center gap-2">
                       <input
                         autoFocus
                         type="text"
                         value={draftNote}
-                        onChange={(e) => setDraftNote(e.target.value)}
-                        onKeyDown={(e) => handleNoteKeyDown(e, e.currentTarget.closest('[data-id]')?.getAttribute('data-id') ?? editingId!)}
+                        onChange={(ev) => setDraftNote(ev.target.value)}
+                        onKeyDown={(ev) => handleNoteKeyDown(ev, e.id)}
                         onBlur={() => saveNote(e.id)}
                         placeholder="Add a note…"
                         className="flex-1 bg-slate-800 text-white placeholder-slate-500 text-xs rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-slate-500"
@@ -138,10 +154,7 @@ export function HistoryView() {
                       <button onClick={() => setEditingId(null)} className="text-xs text-slate-600 hover:text-slate-400">✕</button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => startEdit(e.id, e.notes)}
-                      className="text-left w-full group"
-                    >
+                    <button onClick={() => startNoteEdit(e.id, e.notes)} className="text-left w-full group">
                       {e.notes ? (
                         <span className="text-xs text-slate-400 italic group-hover:text-slate-300">"{e.notes}"</span>
                       ) : (
@@ -154,6 +167,16 @@ export function HistoryView() {
             )
           })}
         </div>
+      )}
+
+      {/* Edit / Add entry modal */}
+      {editingEntry !== undefined && (
+        <EditEntryModal
+          entry={editingEntry}
+          date={date}
+          onClose={() => setEditingEntry(undefined)}
+          onSaved={refresh}
+        />
       )}
     </div>
   )
