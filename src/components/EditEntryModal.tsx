@@ -6,6 +6,8 @@ import type { TimeEntry } from '../types'
 interface Props {
   entry?: TimeEntry | null   // null = new entry
   date: string               // YYYY-MM-DD, used for new entries
+  gapStart?: string          // pre-fill start for gap entries
+  gapEnd?: string            // pre-fill end for gap entries
   onClose: () => void
   onSaved: () => void
 }
@@ -19,7 +21,7 @@ function toDateTimeLocal(iso: string): string {
   return local.toISOString().slice(0, 16)
 }
 
-export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
+export function EditEntryModal({ entry, date, gapStart, gapEnd, onClose, onSaved }: Props) {
   const activities = useActivityStore((s) => s.activities)
 
   const parents = activities.filter(
@@ -33,8 +35,8 @@ export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
   )
 
   const defaultActivityId = entry?.activity_id ?? leafActivities[0]?.id ?? standalones[0]?.id ?? ''
-  const defaultStart = entry ? toDateTimeLocal(entry.started_at) : `${date}T09:00`
-  const defaultStop = entry?.stopped_at ? toDateTimeLocal(entry.stopped_at) : `${date}T09:30`
+  const defaultStart = entry ? toDateTimeLocal(entry.started_at) : (gapStart ? toDateTimeLocal(gapStart) : `${date}T09:00`)
+  const defaultStop = entry?.stopped_at ? toDateTimeLocal(entry.stopped_at) : (gapEnd ? toDateTimeLocal(gapEnd) : `${date}T09:30`)
 
   const [activityId, setActivityId] = useState(defaultActivityId)
   const [startedAt, setStartedAt] = useState(defaultStart)
