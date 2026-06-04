@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { TimeEntry } from '../types'
 
@@ -6,7 +6,7 @@ export function useTimeEntries(date: string) {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
+  const fetch = useCallback(() => {
     setLoading(true)
     const start = `${date}T00:00:00.000Z`
     const end = `${date}T23:59:59.999Z`
@@ -22,5 +22,7 @@ export function useTimeEntries(date: string) {
       })
   }, [date])
 
-  return { entries, loading }
+  useEffect(() => { fetch() }, [fetch])
+
+  return { entries, loading, refresh: fetch }
 }

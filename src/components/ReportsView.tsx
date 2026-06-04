@@ -6,9 +6,15 @@ import type { TimeEntry } from '../types'
 
 type Period = 'day' | 'week' | 'month'
 
+const BAR_COLORS: Record<string, string> = {
+  slate: 'bg-slate-500', red: 'bg-red-500', orange: 'bg-orange-500',
+  amber: 'bg-amber-500', green: 'bg-green-500', teal: 'bg-teal-500',
+  blue: 'bg-blue-500', violet: 'bg-violet-500', pink: 'bg-pink-500',
+}
+
 function startOfWeek(d: Date): Date {
-  const day = d.getDay() // 0=Sun
-  const diff = (day === 0 ? -6 : 1) - day // Monday start
+  const day = d.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
   const result = new Date(d)
   result.setDate(d.getDate() + diff)
   result.setHours(0, 0, 0, 0)
@@ -17,7 +23,6 @@ function startOfWeek(d: Date): Date {
 
 function getRangeForPeriod(period: Period, offset: number): { start: Date; end: Date; label: string } {
   const now = new Date()
-
   if (period === 'day') {
     const d = new Date(now)
     d.setDate(d.getDate() + offset)
@@ -27,7 +32,6 @@ function getRangeForPeriod(period: Period, offset: number): { start: Date; end: 
     const label = offset === 0 ? 'Today' : offset === -1 ? 'Yesterday' : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
     return { start: d, end, label }
   }
-
   if (period === 'week') {
     const monday = startOfWeek(now)
     monday.setDate(monday.getDate() + offset * 7)
@@ -38,12 +42,32 @@ function getRangeForPeriod(period: Period, offset: number): { start: Date; end: 
       : `${monday.toLocaleDateString([], { month: 'short', day: 'numeric' })} – ${sunday.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
     return { start: monday, end: sunday, label }
   }
-
-  // month
   const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
   const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999)
   const label = offset === 0 ? 'This month' : d.toLocaleDateString([], { month: 'long', year: 'numeric' })
   return { start: d, end, label }
+}
+
+function exportCSV(entries: TimeEntry[], activityMap: Record<string, { name: string; color: string | null }>, label: string) {
+  const rows = [
+    ['Date', 'Time', 'Activity', 'Duration (min)', 'Notes'],
+    ...entries.map((e) => {
+      const act = activityMap[e.activity_id]
+      const stopped = e.stopped_at ? new Date(e.stopped_at).getTime() : Date.now()
+      const mins = ((stopped - new Date(e.started_at).getTime()) / 60000).toFixed(1)
+      const date = new Date(e.started_at).toLocaleDateString()
+      const time = new Date(e.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return [date, time, act?.name ?? 'Unknown', mins, e.notes ?? '']
+    })
+  ]
+  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `trckr-${label.replace(/\s/g, '-').toLowerCase()}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 export function ReportsView() {
@@ -73,7 +97,6 @@ export function ReportsView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, offset])
 
-  // Compute ms per activity
   const activityMs: Record<string, number> = {}
   for (const e of entries) {
     const stopped = e.stopped_at ? new Date(e.stopped_at).getTime() : Date.now()
@@ -81,7 +104,6 @@ export function ReportsView() {
     activityMs[e.activity_id] = (activityMs[e.activity_id] ?? 0) + ms
   }
 
-  // Roll up to parents
   const parentMs: Record<string, number> = {}
   for (const [actId, ms] of Object.entries(activityMs)) {
     const act = activityMap[actId]
@@ -91,13 +113,8 @@ export function ReportsView() {
   }
 
   const totalMs = Object.values(parentMs).reduce((a, b) => a + b, 0)
-
   const maxMs = Math.max(...Object.values(activityMs), 1)
-
-  // Day breakdown: entries in chronological order
-  const dayEntries = [...entries].sort((a, b) =>
-    new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
-  )
+  const dayEntries = [...entries].sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
 
   return (
     <div className="space-y-5">
@@ -119,15 +136,10 @@ export function ReportsView() {
       {/* Date navigation */}
       <div className="flex items-center justify-between">
         <button onClick={() => setOffset((o) => o - 1)}
-          className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800">
-          ‹
-        </button>
+          className="text-slate-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800">‹</button>
         <span className="text-sm font-medium text-slate-300">{label}</span>
-        <button
-          onClick={() => setOffset((o) => o + 1)}
-          disabled={offset >= 0}
-          className="text-slate-400 hover:text-white disabled:opacity-20 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800"
-        >›</button>
+        <button onClick={() => setOffset((o) => o + 1)} disabled={offset >= 0}
+          className="text-slate-400 hover:text-white disabled:opacity-20 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800">›</button>
       </div>
 
       {loading ? (
@@ -136,10 +148,18 @@ export function ReportsView() {
         <p className="text-slate-500 text-sm">No time tracked for this period.</p>
       ) : (
         <>
-          {/* Total */}
+          {/* Total + CSV */}
           <div className="bg-slate-800 rounded-2xl px-4 py-3 flex justify-between items-center">
-            <span className="text-sm text-slate-400">Total tracked</span>
-            <span className="font-mono font-semibold text-white">{formatDuration(totalMs)}</span>
+            <div>
+              <span className="text-sm text-slate-400">Total tracked</span>
+              <span className="font-mono font-semibold text-white ml-3">{formatDuration(totalMs)}</span>
+            </div>
+            <button
+              onClick={() => exportCSV(entries, activityMap, label)}
+              className="text-xs text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              ↓ CSV
+            </button>
           </div>
 
           {/* By group / parent */}
@@ -148,37 +168,21 @@ export function ReportsView() {
               const pMs = parentMs[parent.id] ?? 0
               if (pMs === 0) return null
               const pct = totalMs > 0 ? Math.round((pMs / totalMs) * 100) : 0
-
               return (
                 <div key={parent.id} className="space-y-2">
-                  {/* Parent row */}
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-slate-200 flex-1 uppercase tracking-wide text-xs">
-                      {parent.name}
-                    </span>
+                    <span className="flex-1 text-xs font-semibold uppercase tracking-wide text-slate-200">{parent.name}</span>
                     <span className="text-xs text-slate-500">{pct}%</span>
                     <span className="font-mono text-sm text-slate-300 w-20 text-right">{formatDuration(pMs)}</span>
                   </div>
-                  {/* Parent bar */}
                   <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-400 rounded-full"
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className="h-full bg-slate-400 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-
-                  {/* Children */}
                   {children.map((child) => {
                     const cMs = activityMs[child.id] ?? 0
                     if (cMs === 0) return null
                     const cPct = maxMs > 0 ? Math.round((cMs / maxMs) * 100) : 0
-                    const colorKey = child.color ?? 'slate'
-                    const barColor = {
-                      slate: 'bg-slate-500', red: 'bg-red-500', orange: 'bg-orange-500',
-                      amber: 'bg-amber-500', green: 'bg-green-500', teal: 'bg-teal-500',
-                      blue: 'bg-blue-500', violet: 'bg-violet-500', pink: 'bg-pink-500',
-                    }[colorKey] ?? 'bg-slate-500'
-
+                    const barColor = BAR_COLORS[child.color ?? 'slate'] ?? 'bg-slate-500'
                     return (
                       <div key={child.id} className="ml-3 space-y-1">
                         <div className="flex items-center gap-3">
@@ -202,11 +206,7 @@ export function ReportsView() {
                 const ms = activityMs[act.id] ?? 0
                 if (ms === 0) return null
                 const pct = totalMs > 0 ? Math.round((ms / totalMs) * 100) : 0
-                const barColor = {
-                  slate: 'bg-slate-500', red: 'bg-red-500', orange: 'bg-orange-500',
-                  amber: 'bg-amber-500', green: 'bg-green-500', teal: 'bg-teal-500',
-                  blue: 'bg-blue-500', violet: 'bg-violet-500', pink: 'bg-pink-500',
-                }[act.color ?? 'slate'] ?? 'bg-slate-500'
+                const barColor = BAR_COLORS[act.color ?? 'slate'] ?? 'bg-slate-500'
                 return (
                   <div key={act.id} className="space-y-1">
                     <div className="flex items-center gap-3">
@@ -222,7 +222,7 @@ export function ReportsView() {
               })}
           </div>
 
-          {/* Day timeline (only shown for day view) */}
+          {/* Day timeline */}
           {period === 'day' && dayEntries.length > 0 && (
             <div className="pt-2 space-y-1">
               <p className="text-xs uppercase tracking-widest text-slate-500 pb-1">Timeline</p>
@@ -231,9 +231,11 @@ export function ReportsView() {
                 const stopped = e.stopped_at ? new Date(e.stopped_at).getTime() : Date.now()
                 const ms = Math.max(0, stopped - new Date(e.started_at).getTime())
                 const startTime = new Date(e.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                const dotColor = BAR_COLORS[act?.color ?? 'slate'] ?? 'bg-slate-500'
                 return (
                   <div key={e.id} className="flex items-center gap-3 py-1.5 border-b border-slate-800">
                     <span className="text-slate-500 text-xs font-mono w-12 flex-shrink-0">{startTime}</span>
+                    <span className={`h-2 w-2 rounded-full flex-shrink-0 ${dotColor}`} />
                     <span className="flex-1 text-sm text-slate-300">{act?.name ?? 'Unknown'}</span>
                     <span className="text-xs font-mono text-slate-500">{formatDuration(ms)}</span>
                   </div>
