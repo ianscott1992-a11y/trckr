@@ -71,6 +71,19 @@ export function HistoryView() {
   const drag = useRef<DragState | null>(null)
   const pinch = useRef<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const savedScroll = useRef<number>(0)
+
+  // Restore scroll position after entries refresh
+  useEffect(() => {
+    if (containerRef.current && savedScroll.current > 0) {
+      containerRef.current.scrollTop = savedScroll.current
+    }
+  }, [entries])
+
+  function stableRefresh() {
+    savedScroll.current = containerRef.current?.scrollTop ?? 0
+    refresh()
+  }
 
   // edit modal
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null | undefined>(undefined)
@@ -149,6 +162,9 @@ export function HistoryView() {
     setLocals(prev => ({ ...prev, [entry.id]: { startMin: s, stopMin: t } }))
   }
 
+  const stableRefreshRef = useRef(stableRefresh)
+  useEffect(() => { stableRefreshRef.current = stableRefresh })
+
   const commitDrag = useCallback(async (entry: TimeEntry) => {
     const d = drag.current
     if (!d || d.id !== entry.id) return
@@ -166,8 +182,8 @@ export function HistoryView() {
     }).eq('id', entry.id)
     setSaving(prev => { const n=new Set(prev); n.delete(entry.id); return n })
     setLocals(prev => { const n={...prev}; delete n[entry.id]; return n })
-    refresh()
-  }, [locals, date, refresh])
+    stableRefreshRef.current()
+  }, [locals, date])
 
   // ── derived data ──────────────────────────────────────────────────────────
   const totalHours = END_HOUR - START_HOUR
@@ -375,7 +391,7 @@ export function HistoryView() {
           gapStart={gapStart}
           gapEnd={gapEnd}
           onClose={() => setEditingEntry(undefined)}
-          onSaved={refresh}
+          onSaved={stableRefresh}
         />
       )}
     </div>
