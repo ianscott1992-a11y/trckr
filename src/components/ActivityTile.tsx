@@ -48,7 +48,7 @@ export function ActivityTile({ activity, activeEntry, onEdit }: Props) {
 
   return (
     <div
-      className={`relative rounded-2xl p-3 cursor-pointer select-none transition-all duration-150 active:scale-95 aspect-square flex flex-col justify-between ${bg} ${
+      className={`relative rounded-xl px-2 py-2 cursor-pointer select-none transition-all duration-150 active:scale-95 flex flex-col items-center justify-center h-14 ${bg} ${
         isActive ? 'ring-2 ring-white/50 shadow-lg' : 'opacity-90 hover:opacity-100'
       }`}
       onClick={handleTap}
@@ -63,20 +63,18 @@ export function ActivityTile({ activity, activeEntry, onEdit }: Props) {
       {/* Edit button */}
       <button
         onClick={(e) => { e.stopPropagation(); onEdit(activity) }}
-        className="absolute top-1.5 left-2 text-white/40 hover:text-white/80 text-xs leading-none"
+        className="absolute top-1 left-1.5 text-white/30 hover:text-white/70 text-xs leading-none"
         aria-label="Edit"
       >⋯</button>
 
       {/* Label */}
-      <div className="flex-1 flex items-center justify-center pt-2">
-        <span className="text-white font-semibold text-xs text-center leading-tight line-clamp-2">
-          {activity.name}
-        </span>
-      </div>
+      <span className="text-white font-semibold text-xs text-center leading-tight line-clamp-2 px-1">
+        {activity.name}
+      </span>
 
       {/* Timer */}
       {isActive && (
-        <div className="text-center text-white/80 text-xs font-mono mt-1">
+        <div className="text-white/80 text-xs font-mono leading-none mt-0.5">
           <LiveTimer startedAt={activeEntry!.started_at} />
         </div>
       )}

@@ -75,7 +75,7 @@ export function ActivityList() {
                 className="ml-auto text-slate-600 hover:text-slate-400 text-xs"
               >+ add</button>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
               {children.map((child) => (
                 <ActivityTile
                   key={child.id}
@@ -90,7 +90,7 @@ export function ActivityList() {
 
         {/* Standalone activities */}
         {standalones.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
             {standalones.map((activity) => (
               <ActivityTile
                 key={activity.id}
