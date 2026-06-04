@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(npx --yes create-vite@latest . --template react-ts)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(xcopy \"G:\\\\My Drive\\\\07 Automation and AI\\\\Software\\\\Trckr - Time Tracking App\" C:\\\\projects\\\\trckr /E /I /Y /EXCLUDE:\"G:\\\\My Drive\\\\07 Automation and AI\\\\Software\\\\Trckr - Time Tracking App\\\\xcopy-exclude.txt\")",
+      "Bash(xcopy \"G:\\\\My Drive\\\\07 Automation and AI\\\\Software\\\\Trckr - Time Tracking App\" C:\\\\projects\\\\trckr /E /I /Y)"
+    ]
+  }
+}
