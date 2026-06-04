@@ -193,19 +193,42 @@ export function HistoryView() {
     (a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
   )
 
-  const overlappingIds = new Set<string>()
-  for (let i = 0; i < sorted.length; i++) {
-    for (let j = i + 1; j < sorted.length; j++) {
-      const aS = new Date(sorted[i].started_at).getTime()
-      const aE = sorted[i].stopped_at ? new Date(sorted[i].stopped_at!).getTime() : Date.now()
-      const bS = new Date(sorted[j].started_at).getTime()
-      const bE = sorted[j].stopped_at ? new Date(sorted[j].stopped_at!).getTime() : Date.now()
-      if (aS < bE && bS < aE) {
-        overlappingIds.add(sorted[i].id)
-        overlappingIds.add(sorted[j].id)
-      }
-    }
+  // Column layout (Google Calendar algorithm)
+  // Each entry assigned to leftmost column where it doesn't overlap previous entry
+  const colEnds: number[] = []   // last stop-min of each column
+  const entryCol = new Map<string, number>()
+
+  for (const e of sorted) {
+    const loc = locals[e.id]
+    const sMin = loc?.startMin ?? minOfDay(e.started_at)
+    const tMin = loc?.stopMin  ?? (e.stopped_at ? minOfDay(e.stopped_at) : minOfDay(new Date().toISOString()))
+    let col = colEnds.findIndex(end => end <= sMin)
+    if (col === -1) { col = colEnds.length; colEnds.push(tMin) }
+    else colEnds[col] = tMin
+    entryCol.set(e.id, col)
   }
+
+  // For each entry, totalColumns = max column of all overlapping entries + 1
+  const entryTotalCols = new Map<string, number>()
+  for (const a of sorted) {
+    const aCol = entryCol.get(a.id) ?? 0
+    const aLoc = locals[a.id]
+    const aS = aLoc?.startMin ?? minOfDay(a.started_at)
+    const aT = aLoc?.stopMin  ?? (a.stopped_at ? minOfDay(a.stopped_at) : minOfDay(new Date().toISOString()))
+    let maxCol = aCol
+    for (const b of sorted) {
+      if (b.id === a.id) continue
+      const bLoc = locals[b.id]
+      const bS = bLoc?.startMin ?? minOfDay(b.started_at)
+      const bT = bLoc?.stopMin  ?? (b.stopped_at ? minOfDay(b.stopped_at) : minOfDay(new Date().toISOString()))
+      if (aS < bT && bS < aT) maxCol = Math.max(maxCol, entryCol.get(b.id) ?? 0)
+    }
+    entryTotalCols.set(a.id, maxCol + 1)
+  }
+
+  const overlappingIds = new Set(
+    [...entryTotalCols.entries()].filter(([, t]) => t > 1).map(([id]) => id)
+  )
 
   const gaps = sorted.flatMap((e, i) => {
     if (i === sorted.length - 1 || !e.stopped_at) return []
@@ -331,6 +354,12 @@ export function HistoryView() {
               const isDragging= drag.current?.id === e.id
               const showDetail= h > 38
 
+              // Column layout
+              const col   = entryCol.get(e.id) ?? 0
+              const total = entryTotalCols.get(e.id) ?? 1
+              const colW  = `calc((100% - 52px - 4px) / ${total})`
+              const colL  = `calc(52px + (100% - 52px - 4px) / ${total} * ${col})`
+
               return (
                 <div
                   key={e.id}
@@ -339,7 +368,7 @@ export function HistoryView() {
                   } ${isDragging ? 'shadow-2xl ring-2 ring-white/30 z-20' : 'z-10'} ${
                     isSaving ? 'opacity-60' : ''
                   }`}
-                  style={{ top, height: h, left: 52, right: 4, cursor: 'grab', touchAction: 'none' }}
+                  style={{ top, height: h, left: colL, width: colW, cursor: 'grab', touchAction: 'none' }}
                   onPointerDown={(ev) => startDrag(ev, e, 'move')}
                   onPointerMove={(ev) => onPointerMove(ev, e)}
                   onPointerUp={() => commitDrag(e)}
