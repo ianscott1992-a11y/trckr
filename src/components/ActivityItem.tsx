@@ -52,7 +52,7 @@ export function ActivityItem({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer select-none transition-all duration-150 ${
+      className={`flex items-center gap-2 rounded-xl px-3 py-1.5 sm:py-2 cursor-pointer select-none transition-all duration-150 ${
         indent ? 'ml-4' : ''
       } ${
         isActive
