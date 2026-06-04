@@ -1,5 +1,4 @@
 import { useActivityStore } from '../store/useActivityStore'
-import { LiveTimer } from './LiveTimer'
 import type { Activity, TimeEntry } from '../types'
 
 const BG_COLORS: Record<string, string> = {
@@ -72,12 +71,6 @@ export function ActivityTile({ activity, activeEntry, onEdit }: Props) {
         {activity.name}
       </span>
 
-      {/* Timer */}
-      {isActive && (
-        <div className="text-white/80 text-xs font-mono leading-none mt-0.5">
-          <LiveTimer startedAt={activeEntry!.started_at} />
-        </div>
-      )}
     </div>
   )
 }
