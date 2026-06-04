@@ -10,28 +10,33 @@ interface Props {
   onSaved: () => void
 }
 
-function toLocalInput(iso: string) {
-  // Convert ISO to local datetime-local input value
+function toDateTimeLocal(iso: string): string {
   const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (isNaN(d.getTime())) return ''
+  // Format as local time for datetime-local input
+  const offset = d.getTimezoneOffset()
+  const local = new Date(d.getTime() - offset * 60000)
+  return local.toISOString().slice(0, 16)
 }
-
 
 export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
   const activities = useActivityStore((s) => s.activities)
+
+  const parents = activities.filter(
+    (a) => a.parent_id === null && activities.some((c) => c.parent_id === a.id)
+  )
   const leafActivities = activities.filter(
     (a) => !activities.some((c) => c.parent_id === a.id)
   )
+  const standalones = activities.filter(
+    (a) => a.parent_id === null && !activities.some((c) => c.parent_id === a.id)
+  )
 
-  const defaultStart = entry
-    ? toLocalInput(entry.started_at)
-    : `${date}T09:00`
-  const defaultStop = entry?.stopped_at
-    ? toLocalInput(entry.stopped_at)
-    : `${date}T09:30`
+  const defaultActivityId = entry?.activity_id ?? leafActivities[0]?.id ?? standalones[0]?.id ?? ''
+  const defaultStart = entry ? toDateTimeLocal(entry.started_at) : `${date}T09:00`
+  const defaultStop = entry?.stopped_at ? toDateTimeLocal(entry.stopped_at) : `${date}T09:30`
 
-  const [activityId, setActivityId] = useState(entry?.activity_id ?? leafActivities[0]?.id ?? '')
+  const [activityId, setActivityId] = useState(defaultActivityId)
   const [startedAt, setStartedAt] = useState(defaultStart)
   const [stoppedAt, setStoppedAt] = useState(defaultStop)
   const [notes, setNotes] = useState(entry?.notes ?? '')
@@ -40,9 +45,11 @@ export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    setError('')
     if (!activityId) { setError('Select an activity'); return }
     const start = new Date(startedAt)
     const stop = new Date(stoppedAt)
+    if (isNaN(start.getTime()) || isNaN(stop.getTime())) { setError('Invalid time'); return }
     if (stop <= start) { setError('Stop time must be after start time'); return }
 
     setSaving(true)
@@ -74,13 +81,6 @@ export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
     onClose()
   }
 
-  // Group activities for the dropdown
-  const groups = useActivityStore((s) => {
-    const acts = s.activities
-    const parents = acts.filter((a) => a.parent_id === null && acts.some((c) => c.parent_id === a.id))
-    return parents
-  })
-
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60" onClick={onClose}>
       <div
@@ -100,7 +100,7 @@ export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
               onChange={(e) => setActivityId(e.target.value)}
               className="w-full bg-slate-700 text-white rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-white/20 text-sm"
             >
-              {groups.map((parent) => (
+              {parents.map((parent) => (
                 <optgroup key={parent.id} label={parent.name}>
                   {leafActivities
                     .filter((a) => a.parent_id === parent.id)
@@ -109,11 +109,9 @@ export function EditEntryModal({ entry, date, onClose, onSaved }: Props) {
                     ))}
                 </optgroup>
               ))}
-              {leafActivities
-                .filter((a) => a.parent_id === null)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
+              {standalones.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
             </select>
           </div>
 
