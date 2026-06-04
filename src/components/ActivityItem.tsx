@@ -52,7 +52,7 @@ export function ActivityItem({
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-2xl px-4 py-3 cursor-pointer select-none transition-all duration-150 ${
+      className={`flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer select-none transition-all duration-150 ${
         indent ? 'ml-4' : ''
       } ${
         isActive
@@ -67,10 +67,10 @@ export function ActivityItem({
         )}
       </div>
 
-      <span className="flex-1 text-base font-medium text-white">{activity.name}</span>
+      <span className="flex-1 text-sm font-medium text-white">{activity.name}</span>
 
       {isActive && (
-        <span className="text-sm font-mono text-slate-300">
+        <span className="text-xs font-mono text-slate-300">
           <LiveTimer startedAt={activeEntry!.started_at} />
         </span>
       )}

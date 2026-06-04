@@ -48,7 +48,7 @@ export function ActivityList() {
   )
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Grouped activities */}
       {groupsWithChildren.map(({ parent, children }, gi) => {
         const isOpen = !collapsed.has(parent.id)
