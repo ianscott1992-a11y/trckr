@@ -8,8 +8,9 @@ export function useTimeEntries(date: string) {
 
   const fetch = useCallback(() => {
     setLoading(true)
-    const start = `${date}T00:00:00.000Z`
-    const end = `${date}T23:59:59.999Z`
+    // Parse as local time (no Z) so boundaries respect the device timezone
+    const start = new Date(`${date}T00:00:00`).toISOString()
+    const end   = new Date(`${date}T23:59:59.999`).toISOString()
     supabase
       .from('time_entries')
       .select('*')
